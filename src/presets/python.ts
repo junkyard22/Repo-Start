@@ -1,7 +1,7 @@
 import type { FileEntry, ProjectConfig } from '../config/types.ts';
 import { escapeQuotes, toPythonModule } from '../utils/strings.ts';
 import { spdxId } from '../templates/license.ts';
-import type { Preset } from './types.ts';
+import type { CiOptions, Preset } from './types.ts';
 
 /** Python version used by the generated CI workflow. */
 const PYTHON_VERSION = '3.13';
@@ -101,23 +101,31 @@ def test_greet_addresses_the_given_name() -> None:
 `;
 }
 
-const CI_WORKFLOW = `name: CI
+function ciWorkflow(options: CiOptions = {}): string {
+  const version = options.runtimeVersionFile
+    ? `python-version-file: '${options.runtimeVersionFile}'`
+    : `python-version: '${PYTHON_VERSION}'`;
+
+  return `name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: '${PYTHON_VERSION}'
+          ${version}
 
       - run: python -m pip install --upgrade pip
 
@@ -125,6 +133,7 @@ jobs:
 
       - run: pytest
 `;
+}
 
 export const pythonPreset: Preset = {
   id: 'python',
@@ -174,7 +183,7 @@ export const pythonPreset: Preset = {
 
   directories: () => [],
 
-  ci: () => CI_WORKFLOW,
+  ci: (_config, options) => ciWorkflow(options),
 
   structure: (config) => [
     { path: `src/${moduleName(config)}/`, description: 'Python package source.' },

@@ -19,6 +19,43 @@ export function slugify(input: string): string {
  * Turn a slug into an importable Python module name.
  * "my-project" -> "my_project", "3d-tools" -> "pkg_3d_tools"
  */
+const PYTHON_KEYWORDS = new Set([
+  'and',
+  'as',
+  'assert',
+  'async',
+  'await',
+  'break',
+  'case',
+  'class',
+  'continue',
+  'def',
+  'del',
+  'elif',
+  'else',
+  'except',
+  'finally',
+  'for',
+  'from',
+  'global',
+  'if',
+  'import',
+  'in',
+  'is',
+  'lambda',
+  'match',
+  'nonlocal',
+  'not',
+  'or',
+  'pass',
+  'raise',
+  'return',
+  'try',
+  'while',
+  'with',
+  'yield',
+]);
+
 export function toPythonModule(slug: string): string {
   let name = slug.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_{2,}/g, '_');
   name = name.replace(/^_+|_+$/g, '');
@@ -29,7 +66,10 @@ export function toPythonModule(slug: string): string {
   if (/^[0-9]/.test(name)) {
     return `pkg_${name}`;
   }
-  return name.toLowerCase();
+
+  const lower = name.toLowerCase();
+
+  return PYTHON_KEYWORDS.has(lower) ? `pkg_${lower}` : lower;
 }
 
 /** Join non-empty document sections with exactly one blank line between them. */

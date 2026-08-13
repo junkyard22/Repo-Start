@@ -49,6 +49,34 @@ const BOOLEAN_PAIRS = {
   includePullRequestTemplate: ['pr-template', 'no-pr-template'],
 } as const;
 
+const ADD_UNSUPPORTED_OPTIONS = [
+  'name',
+  'description',
+  'license',
+  'author',
+  'public',
+  'private',
+  'git',
+  'no-git',
+  'env',
+  'no-env',
+  'agents',
+  'no-agents',
+  'contributing',
+  'no-contributing',
+  'changelog',
+  'no-changelog',
+  'docs',
+  'no-docs',
+  'ci',
+  'no-ci',
+  'issue-template',
+  'no-issue-template',
+  'pr-template',
+  'no-pr-template',
+  'force',
+] as const;
+
 export const HELP_TEXT = `Repo Start — create the boring foundational files of a new repository.
 
 Usage
@@ -182,10 +210,19 @@ export function parseCliArgs(argv: string[]): CliOptions {
     ]);
   }
 
-  if (isAdd && values['force'] === true) {
-    throw new RepoStartError('--force is not used by `repo-start add`.', [
-      'The add command never overwrites an existing file.',
-    ]);
+  if (isAdd) {
+    const unsupported = ADD_UNSUPPORTED_OPTIONS.filter((name) => {
+      const value = values[name];
+
+      return value === true || typeof value === 'string';
+    });
+
+    if (unsupported.length > 0) {
+      const options = unsupported.map((name) => `--${name}`).join(', ');
+      const verb = unsupported.length === 1 ? 'is' : 'are';
+
+      throw new RepoStartError(`${options} ${verb} not used by \`repo-start add\`.`);
+    }
   }
 
   const type = optionalString(values['type']);

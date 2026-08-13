@@ -35,6 +35,8 @@ export interface RepoState {
   commands: CommandSet;
   /** `scripts` from package.json, when there is one. */
   packageScripts?: Record<string, string>;
+  /** Repository file an Actions setup step can use to select a compatible runtime. */
+  runtimeVersionFile?: string;
   /** `name` and `description` from package.json or pyproject.toml. */
   projectName?: string;
   projectDescription?: string;

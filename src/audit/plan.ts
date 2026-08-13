@@ -41,9 +41,14 @@ export interface AddProposal extends Proposal {
  * own commands. The license is always "none" because Repo Start never decides
  * licensing for an existing project.
  */
-export function configFromRepoState(state: RepoState): ProjectConfig {
+export function configFromRepoState(
+  state: RepoState,
+  plannedPaths: Iterable<string> = [],
+): ProjectConfig {
   const candidate = state.projectName ?? state.name;
   const name = validateProjectName(candidate).length === 0 ? candidate : slugify(candidate);
+  const planned = new Set(plannedPaths);
+  const has = (path: string): boolean => state.files.has(path) || planned.has(path);
 
   const defaults = createDefaultConfig({
     name,
@@ -59,7 +64,82 @@ export function configFromRepoState(state: RepoState): ProjectConfig {
     description: state.projectDescription ?? '',
     license: 'none',
     initializeGit: false,
+    includeEnvExample: has('.env.example'),
+    includeAgents: has('AGENTS.md'),
+    includeContributing: has('CONTRIBUTING.md'),
+    includeChangelog: has('CHANGELOG.md'),
+    includeDocs: has('docs') || planned.has('docs/README.md'),
+    includeCi:
+      state.workflows.length > 0 || planned.has('.github/workflows/ci.yml'),
+    includeIssueTemplate:
+      has('.github/ISSUE_TEMPLATE') ||
+      planned.has('.github/ISSUE_TEMPLATE/bug_report.md') ||
+      planned.has('.github/ISSUE_TEMPLATE/feature_request.md'),
+    includePullRequestTemplate: has('.github/pull_request_template.md'),
   };
+}
+
+/** Render a selected creation against the final, accepted repository shape. */
+function renderAcceptedFile(
+  proposal: AddProposal,
+  config: ProjectConfig,
+  state: RepoState,
+): FileEntry {
+  const preset = getPreset(state.detectedType);
+
+  switch (proposal.id) {
+    case 'gitignore':
+      return { path: proposal.path, contents: renderGitignore(config, preset) };
+    case 'gitattributes':
+      return { path: proposal.path, contents: renderGitAttributes() };
+    case 'env-example':
+      return { path: proposal.path, contents: renderEnvExample(config, preset) };
+    case 'agents':
+      return {
+        path: proposal.path,
+        contents: renderAgents({
+          config,
+          commands: state.commands,
+          structure: preset.structure(config),
+        }),
+      };
+    case 'contributing':
+      return {
+        path: proposal.path,
+        contents: renderContributing({
+          config,
+          commands: state.commands,
+          directoryName: state.name,
+        }),
+      };
+    case 'changelog':
+      return { path: proposal.path, contents: renderChangelog() };
+    case 'docs':
+      return { path: proposal.path, contents: renderDocsIndex(config) };
+    case 'issue-template':
+      return { path: proposal.path, contents: renderBugReportTemplate() };
+    case 'issue-template-feature':
+      return { path: proposal.path, contents: renderFeatureRequestTemplate() };
+    case 'pr-template':
+      return {
+        path: proposal.path,
+        contents: renderPullRequestTemplate(config, state.commands),
+      };
+    case 'ci': {
+      const workflow = workflowForExistingRepository(config, state);
+
+      if (workflow) {
+        return { path: proposal.path, contents: workflow };
+      }
+      break;
+    }
+  }
+
+  if (!proposal.file) {
+    throw new Error(`Creation proposal ${proposal.id} has no file.`);
+  }
+
+  return proposal.file;
 }
 
 /** True when every npm script the workflow runs exists in the repository. */
@@ -78,6 +158,24 @@ function workflowMatchesRepository(workflow: string, state: RepoState): boolean 
     }
 
     return Boolean(scripts[invocation.script]);
+  });
+}
+
+/**
+ * Build CI only when the existing repository declares which runtime it uses.
+ * The setup action reads that file directly, so Repo Start never substitutes
+ * a preset version that may violate the project's own supported range.
+ */
+function workflowForExistingRepository(
+  config: ProjectConfig,
+  state: RepoState,
+): string | null {
+  if (!state.runtimeVersionFile) {
+    return null;
+  }
+
+  return getPreset(state.detectedType).ci(config, {
+    runtimeVersionFile: state.runtimeVersionFile,
   });
 }
 
@@ -163,7 +261,7 @@ export function buildProposals(audit: RepoAudit): AddProposal[] {
   // A workflow is only offered when every command it would run already exists
   // in this repository. Otherwise Repo Start would be adding CI that fails.
   if (missing.has('missing-ci')) {
-    const workflow = preset.ci(config);
+    const workflow = workflowForExistingRepository(config, state);
 
     if (workflow && workflowMatchesRepository(workflow, state)) {
       add(
@@ -204,14 +302,17 @@ export function buildProposals(audit: RepoAudit): AddProposal[] {
  */
 export function buildAddPlan(audit: RepoAudit, accepted: AddProposal[]): ProjectPlan {
   const { state } = audit;
-  const config = configFromRepoState(state);
+  const acceptedPaths = accepted
+    .filter((proposal) => proposal.file !== undefined)
+    .map((proposal) => proposal.path);
+  const config = configFromRepoState(state, acceptedPaths);
   const files: FileEntry[] = [];
   const editsByFile = new Map<string, ProjectPlan['edits'][number]>();
   const notes: string[] = [];
 
   for (const proposal of accepted) {
     if (proposal.file) {
-      files.push(proposal.file);
+      files.push(renderAcceptedFile(proposal, config, state));
       continue;
     }
 

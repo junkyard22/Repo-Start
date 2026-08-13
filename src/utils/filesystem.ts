@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -31,6 +31,52 @@ export function assertSafeTarget(targetDir: string): void {
       ['Create or choose a subdirectory instead, for example: repo-start my-project'],
     );
   }
+
+  assertNoLinkedComponents(resolved, resolved);
+}
+
+/**
+ * Refuse existing symbolic links and Windows junctions at or below the target.
+ *
+ * A lexical path may look contained while the filesystem redirects one of its
+ * components elsewhere. Checking every existing component keeps writes from
+ * following a link outside the directory the user selected.
+ */
+function assertNoLinkedComponents(base: string, destination: string): void {
+  const relative = path.relative(base, destination);
+  const segments = relative.length === 0 ? [] : relative.split(path.sep);
+  let current = base;
+
+  for (const segment of ['', ...segments]) {
+    if (segment.length > 0) {
+      current = path.join(current, segment);
+    }
+
+    try {
+      const stats = lstatSync(current);
+
+      if (stats.isSymbolicLink()) {
+        throw new RepoStartError(
+          `Refusing to write through a symbolic link or junction: ${current}`,
+        );
+      }
+      if (current === destination && stats.isFile() && stats.nlink > 1) {
+        throw new RepoStartError(`Refusing to overwrite or edit a hard-linked file: ${current}`);
+      }
+    } catch (error) {
+      if (error instanceof RepoStartError) {
+        throw error;
+      }
+
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        continue;
+      }
+
+      throw new RepoStartError(`Unable to verify that this path is safe to write: ${current}`, [
+        error instanceof Error ? error.message : String(error),
+      ]);
+    }
+  }
 }
 
 /**
@@ -43,6 +89,8 @@ export function resolveInside(targetDir: string, relativePath: string): string {
   if (resolved !== base && !resolved.startsWith(base + path.sep)) {
     throw new RepoStartError(`Refusing to write outside the target directory: ${relativePath}`);
   }
+
+  assertNoLinkedComponents(base, resolved);
 
   return resolved;
 }

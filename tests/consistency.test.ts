@@ -73,7 +73,12 @@ describe('CI workflows only run commands the project supports', () => {
       assert.ok(runSteps.length > 0, 'A generated workflow must run something');
 
       for (const step of runSteps) {
-        assert.ok(known.has(step), `CI runs "${step}", which is not a command of the ${type} preset`);
+        const deterministicNpmInstall = step === 'npm ci' && known.has('npm install');
+
+        assert.ok(
+          known.has(step) || deterministicNpmInstall,
+          `CI runs "${step}", which is not a command of the ${type} preset`,
+        );
       }
     });
   }

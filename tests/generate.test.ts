@@ -100,6 +100,13 @@ describe('python project generation', () => {
     assert.match(fileContents(plan, 'tests/test_core.py'), /from demo_python\.core import greet/);
   });
 
+  test('prefixes Python keywords so generated imports remain valid syntax', () => {
+    const keywordPlan = planFor({ type: 'python', name: 'class' });
+
+    assert.ok(pathsOf(keywordPlan).includes('src/pkg_class/core.py'));
+    assert.match(fileContents(keywordPlan, 'tests/test_core.py'), /from pkg_class\.core import greet/);
+  });
+
   test('records the license in pyproject.toml', () => {
     assert.match(fileContents(plan, 'pyproject.toml'), /license = "MIT"/);
   });
@@ -123,9 +130,13 @@ describe('react-ts project generation', () => {
   });
 
   test('never publishes an application by accident', () => {
-    const manifest = JSON.parse(fileContents(plan, 'package.json')) as { private?: boolean };
+    const manifest = JSON.parse(fileContents(plan, 'package.json')) as {
+      private?: boolean;
+      engines?: { node?: string };
+    };
 
     assert.equal(manifest.private, true);
+    assert.equal(manifest.engines?.node, '>=22.12');
   });
 });
 

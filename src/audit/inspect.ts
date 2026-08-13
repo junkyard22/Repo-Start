@@ -31,6 +31,9 @@ const MANIFEST_PATHS = [
   'pnpm-lock.yaml',
   'bun.lockb',
   'bun.lock',
+  '.nvmrc',
+  '.node-version',
+  '.python-version',
   'pyproject.toml',
   'requirements.txt',
   'setup.py',
@@ -53,6 +56,7 @@ interface PackageJson {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  engines?: { node?: string };
 }
 
 /** U+FEFF, written this way so no invisible character sits in the source. */
@@ -298,6 +302,32 @@ export function inspectRepository(root: string): RepoState {
     documents,
     workflows,
   };
+
+  if (
+    (type === 'node-ts' || type === 'react-ts') &&
+    typeof manifest?.engines?.node === 'string' &&
+    manifest.engines.node.trim().length > 0
+  ) {
+    state.runtimeVersionFile = 'package.json';
+  } else if (
+    (type === 'node-ts' || type === 'react-ts') &&
+    files.has('.nvmrc')
+  ) {
+    state.runtimeVersionFile = '.nvmrc';
+  } else if (
+    (type === 'node-ts' || type === 'react-ts') &&
+    files.has('.node-version')
+  ) {
+    state.runtimeVersionFile = '.node-version';
+  } else if (type === 'python' && files.has('.python-version')) {
+    state.runtimeVersionFile = '.python-version';
+  } else if (type === 'python' && files.has('pyproject.toml')) {
+    const pyproject = readFileOrNull(path.join(resolved, 'pyproject.toml')) ?? '';
+
+    if (/^\s*requires-python\s*=\s*["'][^"']+["']/m.test(pyproject)) {
+      state.runtimeVersionFile = 'pyproject.toml';
+    }
+  }
 
   if (packageManager) {
     state.packageManager = packageManager;

@@ -24,6 +24,7 @@ const ENTRY = fileURLToPath(new URL('../src/index.ts', import.meta.url));
 const MANIFEST = packageJson({
   name: 'demo-app',
   description: 'An existing application',
+  engines: { node: '>=22' },
   scripts: { build: 'tsc', test: 'node --test' },
   devDependencies: { typescript: '^5.9.0' },
 });

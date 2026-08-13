@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { link, mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
@@ -174,6 +174,49 @@ describe('target directory safety', () => {
         () => writePlan(target, planFor(), WRITE),
         (error: unknown) => error instanceof RepoStartError,
       );
+    });
+  });
+
+  test('refuses a linked directory that would redirect a write outside the target', async () => {
+    await withTempDir(async (dir) => {
+      const target = path.join(dir, 'demo');
+      const outside = path.join(dir, 'outside');
+
+      await mkdir(target, { recursive: true });
+      await mkdir(outside, { recursive: true });
+      await symlink(
+        outside,
+        path.join(target, 'docs'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+
+      await assert.rejects(
+        () => writePlan(target, planFor(), WRITE),
+        (error: unknown) =>
+          error instanceof RepoStartError && /symbolic link|junction/i.test(error.message),
+      );
+
+      assert.deepEqual(await readdir(outside), []);
+      assert.deepEqual(await readdir(target), ['docs']);
+    });
+  });
+
+  test('refuses to force-overwrite a hard-linked file', async () => {
+    await withTempDir(async (dir) => {
+      const target = path.join(dir, 'demo');
+      const outside = path.join(dir, 'outside.md');
+
+      await mkdir(target, { recursive: true });
+      await writeFile(outside, 'KEEP ME', 'utf8');
+      await link(outside, path.join(target, 'README.md'));
+
+      await assert.rejects(
+        () => writePlan(target, planFor(), FORCE),
+        (error: unknown) => error instanceof RepoStartError && /hard-linked/i.test(error.message),
+      );
+
+      assert.equal(await readFile(outside, 'utf8'), 'KEEP ME');
+      assert.deepEqual(await readdir(target), ['README.md']);
     });
   });
 });

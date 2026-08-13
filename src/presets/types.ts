@@ -11,6 +11,11 @@ export interface StructureNote {
   description: string;
 }
 
+export interface CiOptions {
+  /** Existing file whose runtime constraint setup-node/setup-python should honor. */
+  runtimeVersionFile?: string;
+}
+
 /**
  * A preset is the only place that knows anything language specific.
  *
@@ -37,7 +42,7 @@ export interface Preset {
    * no legitimate build or test command to run. Returning null is preferred
    * over emitting a workflow full of commands that do not exist.
    */
-  ci(config: ProjectConfig): string | null;
+  ci(config: ProjectConfig, options?: CiOptions): string | null;
   /** "What lives where" notes used by README and AGENTS.md. */
   structure(config: ProjectConfig): StructureNote[];
 }

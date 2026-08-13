@@ -1,6 +1,6 @@
 import type { FileEntry, ProjectConfig } from '../config/types.ts';
 import { spdxId } from '../templates/license.ts';
-import type { Preset } from './types.ts';
+import type { CiOptions, Preset } from './types.ts';
 
 /** Node.js version the generated project targets, kept in sync with its CI. */
 const NODE_VERSION = '24';
@@ -81,31 +81,43 @@ test('greet addresses the given name', () => {
 });
 `;
 
-const CI_WORKFLOW = `name: CI
+function ciWorkflow(options: CiOptions = {}): string {
+  const version = options.runtimeVersionFile
+    ? `node-version-file: '${options.runtimeVersionFile}'`
+    : `node-version: '${NODE_VERSION}'`;
+
+  return `name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '${NODE_VERSION}'
+          ${version}
 
-      # Switch to \`npm ci\` once package-lock.json is committed.
+      - run: npm ci
+        if: \${{ hashFiles('package-lock.json') != '' }}
+
       - run: npm install
+        if: \${{ hashFiles('package-lock.json') == '' }}
 
       - run: npm run build
 
       - run: npm test
 `;
+}
 
 export const nodeTypeScriptPreset: Preset = {
   id: 'node-ts',
@@ -150,7 +162,7 @@ export const nodeTypeScriptPreset: Preset = {
 
   directories: () => [],
 
-  ci: () => CI_WORKFLOW,
+  ci: (_config, options) => ciWorkflow(options),
 
   structure: () => [
     { path: 'src/', description: 'TypeScript source. `src/index.ts` is the entry point.' },

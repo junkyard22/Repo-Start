@@ -15,7 +15,7 @@ offline and has no runtime dependencies.
 
 ## Requirements
 
-- Node.js 22 or newer
+- Node.js 22.18 or newer
 
 ## Getting Started
 
@@ -155,6 +155,8 @@ Repo Start never overwrites a file you did not ask it to write.
   when a directory sits where a file needs to go.
 - `--dry-run` prints the plan and touches nothing.
 - The filesystem root and your home directory are always refused as targets.
+- Existing symbolic links and Windows junctions inside the target are refused,
+  so a generated path cannot be redirected outside the project.
 
 ## Development
 

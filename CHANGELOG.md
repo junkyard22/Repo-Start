@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Refuse symbolic links and Windows junctions anywhere inside a write target,
+  preventing generated files from being redirected outside the project.
+- Prefix Python keywords when deriving module names, so names such as `class`
+  produce valid imports.
+- Reject create-only options passed to `repo-start add` instead of silently
+  ignoring an explicit flag such as `--no-env`.
+- Render accepted `add` documents from the final selection, so they never
+  reference optional files the user declined.
+- Read an existing repository's runtime version file when adding CI rather
+  than substituting a preset Node.js or Python version.
+- Correct the Node.js floors used by this repository and the React preset.
+
+### Security
+
+- Pin GitHub Actions to immutable commits, grant the workflow read-only
+  repository contents, use `npm ci` when a lockfile exists, and add Dependabot
+  update configuration.
+
 ## [0.2.0]
 
 ### Added

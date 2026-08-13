@@ -54,6 +54,7 @@ const NODE_TS_REPO = {
   'package.json': packageJson({
     name: 'demo-app',
     description: 'A demo application.',
+    engines: { node: '>=22' },
     scripts: { build: 'tsc', test: 'node --test' },
     devDependencies: { typescript: '^5.9.0' },
   }),
@@ -93,6 +94,14 @@ describe('parsing the add command', () => {
     assert.throws(
       () => parseCliArgs(['add', '--force']),
       (error: unknown) => error instanceof RepoStartError && /--force is not used/.test(error.message),
+    );
+  });
+
+  test('rejects create-only flags instead of silently ignoring them', () => {
+    assert.throws(
+      () => parseCliArgs(['add', '--no-env']),
+      (error: unknown) =>
+        error instanceof RepoStartError && /--no-env is not used/.test(error.message),
     );
   });
 

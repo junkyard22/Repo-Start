@@ -37,6 +37,7 @@ const NODE_TS_REPO = {
   'package.json': packageJson({
     name: 'demo-app',
     description: 'A demo application.',
+    engines: { node: '>=22' },
     scripts: { build: 'tsc', test: 'node --test', typecheck: 'tsc --noEmit' },
     devDependencies: { typescript: '^5.9.0' },
   }),
@@ -524,6 +525,37 @@ describe('what add offers to do', () => {
     });
   });
 
+  test('does not guess a runtime version when offering CI to an existing project', async () => {
+    await withTempDir(async (dir) => {
+      await writeRepo(dir, {
+        'package.json': packageJson({
+          name: 'demo',
+          scripts: { build: 'tsc', test: 'node --test' },
+          devDependencies: { typescript: '^5.9.0' },
+        }),
+        'tsconfig.json': '{}\n',
+      });
+
+      const ids = buildProposals(auditOf(dir)).map((proposal) => proposal.id);
+
+      assert.equal(ids.includes('ci'), false);
+    });
+  });
+
+  test('makes generated CI read the repository runtime constraint', async () => {
+    await withTempDir(async (dir) => {
+      await writeRepo(dir, NODE_TS_REPO);
+
+      const audit = auditOf(dir);
+      const proposal = buildProposals(audit).find((item) => item.id === 'ci');
+      const plan = buildAddPlan(audit, proposal ? [proposal] : []);
+      const workflow = plan.files[0]?.contents ?? '';
+
+      assert.match(workflow, /node-version-file: 'package\.json'/);
+      assert.doesNotMatch(workflow, /node-version: '24'/);
+    });
+  });
+
   test('offers no workflow at all for a project with nothing to run', async () => {
     await withTempDir(async (dir) => {
       const ids = buildProposals(auditOf(dir)).map((proposal) => proposal.id);
@@ -587,6 +619,37 @@ describe('the plan add builds from the answers', () => {
       assert.deepEqual(paths, [...paths].sort((a, b) => a.localeCompare(b, 'en')));
       assert.ok(paths.includes('.github/ISSUE_TEMPLATE/bug_report.md'));
       assert.ok(paths.includes('.github/ISSUE_TEMPLATE/feature_request.md'));
+    });
+  });
+
+  test('accepted documents mention only files that exist or were also accepted', async () => {
+    await withTempDir(async (dir) => {
+      await writeRepo(dir, NODE_TS_REPO);
+
+      const audit = auditOf(dir);
+      const proposals = buildProposals(audit);
+      const accepted = proposals.filter((proposal) =>
+        ['agents', 'contributing', 'pr-template'].includes(proposal.id),
+      );
+      const plan = buildAddPlan(audit, accepted);
+      const contents = new Map(plan.files.map((file) => [file.path, file.contents]));
+
+      assert.doesNotMatch(contents.get('AGENTS.md') ?? '', /\.env\.example/);
+      assert.doesNotMatch(contents.get('CONTRIBUTING.md') ?? '', /CHANGELOG\.md|CI is green/);
+      assert.doesNotMatch(
+        contents.get('.github/pull_request_template.md') ?? '',
+        /CHANGELOG\.md/,
+      );
+
+      const prOnly = buildAddPlan(
+        audit,
+        proposals.filter((proposal) => proposal.id === 'pr-template'),
+      );
+
+      assert.doesNotMatch(
+        prOnly.files[0]?.contents ?? '',
+        /contributing guidelines|CHANGELOG\.md/,
+      );
     });
   });
 
