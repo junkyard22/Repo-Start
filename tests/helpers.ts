@@ -1,4 +1,5 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -52,6 +53,53 @@ export async function withTempDir<T>(run: (dir: string) => Promise<T>): Promise<
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * Write a fixture repository: paths relative to `dir`, parents created.
+ *
+ * Directories the audit only looks for by name (docs/, .github/ISSUE_TEMPLATE)
+ * are made by writing a file inside them.
+ */
+export async function writeRepo(dir: string, files: Record<string, string>): Promise<void> {
+  for (const [relativePath, contents] of Object.entries(files)) {
+    const destination = path.join(dir, relativePath);
+
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, contents, 'utf8');
+  }
+}
+
+/** A package.json fixture, written the way npm would. */
+export function packageJson(fields: Record<string, unknown>): string {
+  return `${JSON.stringify(fields, null, 2)}\n`;
+}
+
+/**
+ * True when git can be run at all.
+ *
+ * The audit asks git about .gitignore rules, so those tests skip rather than
+ * fail in an environment without git.
+ */
+export function gitAvailable(): boolean {
+  const result = spawnSync('git', ['--version'], { stdio: 'ignore' });
+
+  return !result.error && result.status === 0;
+}
+
+/** Turn an existing directory into a git repository. */
+export function initGitRepository(dir: string): void {
+  spawnSync('git', ['init'], { cwd: dir, stdio: 'ignore' });
+}
+
+/**
+ * Stage a path so git considers it tracked.
+ *
+ * Forced, because the interesting case is a file that is tracked even though
+ * a rule would otherwise ignore it.
+ */
+export function gitAdd(dir: string, relativePath: string): void {
+  spawnSync('git', ['add', '--force', '--', relativePath], { cwd: dir, stdio: 'ignore' });
 }
 
 /** Extract the contents of every ```bash fence in a markdown document. */

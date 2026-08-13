@@ -60,9 +60,11 @@ export function renderAgents(input: AgentsInput): string {
     guidelines[4] = '- Do not commit credentials or secrets.';
   }
 
+  const summary = config.description ? `${config.name} — ${config.description}` : config.name;
+
   return joinSections([
     '# AGENTS.md',
-    ['## Project', '', `${config.name} — ${config.description}`].join('\n'),
+    ['## Project', '', summary].join('\n'),
     structure,
     development,
     guidelines.join('\n'),

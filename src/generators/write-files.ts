@@ -1,6 +1,6 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
-import type { ProjectPlan } from '../config/types.ts';
+import type { FileEdit, ProjectPlan } from '../config/types.ts';
 import { RepoStartError } from '../config/validate.ts';
 import {
   assertSafeTarget,
@@ -23,7 +23,35 @@ export interface WriteResult {
   overwrittenFiles: string[];
   /** Relative directories that would be, or were, created. */
   createdDirectories: string[];
+  /** Relative paths of existing files that would be, or were, edited. */
+  modifiedFiles: string[];
   dryRun: boolean;
+}
+
+/**
+ * Apply narrow line edits to the text of a file.
+ *
+ * The file's own line endings are preserved: edits are applied to the lines
+ * as they are on disk, so a CRLF file stays a CRLF file and nothing outside
+ * the edited lines is rewritten. Returns null when the file no longer matches
+ * what was inspected.
+ */
+export function applyLineEdits(original: string, edit: FileEdit): string | null {
+  const newline = original.includes('\r\n') ? '\r\n' : '\n';
+  const lines = original.split(/\r?\n/);
+  const ordered = [...edit.edits].sort((a, b) => b.line - a.line);
+
+  for (const lineEdit of ordered) {
+    const index = lineEdit.line - 1;
+
+    if (index < 0 || index >= lines.length || lines[index] !== lineEdit.before) {
+      return null;
+    }
+
+    lines.splice(index, 1, ...lineEdit.after);
+  }
+
+  return lines.join(newline);
 }
 
 /** Planned files that already exist in the target directory. */
@@ -91,11 +119,36 @@ export async function writePlan(
     (directory) => !pathExists(resolveInside(targetDir, directory)),
   );
 
+  // Every edit is verified against the file on disk before anything is
+  // written, so a stale plan refuses instead of half-applying.
+  const editedContents = new Map<string, string>();
+
+  for (const edit of plan.edits) {
+    const destination = resolveInside(targetDir, edit.path);
+
+    if (!pathExists(destination) || isDirectory(destination)) {
+      throw new RepoStartError(`Cannot edit ${edit.path}: it is not a file in ${targetDir}.`);
+    }
+
+    const original = await readFile(destination, 'utf8');
+    const updated = applyLineEdits(original, edit);
+
+    if (updated === null) {
+      throw new RepoStartError(
+        `${edit.path} has changed since it was inspected, so it was not edited.`,
+        ['Re-run repo-start add to inspect the current contents.'],
+      );
+    }
+
+    editedContents.set(edit.path, updated);
+  }
+
   const result: WriteResult = {
     targetDir,
     createdFiles,
     overwrittenFiles: collisions,
     createdDirectories,
+    modifiedFiles: plan.edits.map((edit) => edit.path),
     dryRun: options.dryRun,
   };
 
@@ -118,6 +171,10 @@ export async function writePlan(
       encoding: 'utf8',
       flag: options.force ? 'w' : 'wx',
     });
+  }
+
+  for (const [relativePath, contents] of editedContents) {
+    await writeFile(resolveInside(targetDir, relativePath), contents, 'utf8');
   }
 
   return result;
