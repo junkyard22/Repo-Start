@@ -152,5 +152,6 @@ export function generateProject(config: ProjectConfig, options: GenerateOptions)
 
   files.sort((a, b) => a.path.localeCompare(b.path, 'en'));
 
-  return { config, commands, files, directories, notes };
+  // Creating a new project never touches an existing file.
+  return { config, commands, files, directories, edits: [], notes };
 }

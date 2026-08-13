@@ -73,12 +73,39 @@ export interface FileEntry {
   contents: string;
 }
 
+/**
+ * One narrow change inside an existing file.
+ *
+ * `before` must still be exactly what is on that line when the change is
+ * applied, and `after` replaces that single line with zero or more lines.
+ * Everything else in the file, including its line endings, is left alone.
+ */
+export interface LineEdit {
+  /** 1-based line number. */
+  line: number;
+  before: string;
+  after: string[];
+}
+
+/** A set of narrow edits to one existing file. */
+export interface FileEdit {
+  path: string;
+  edits: LineEdit[];
+  /** Human readable summary lines for the report. */
+  summary: string[];
+}
+
 export interface ProjectPlan {
   config: ProjectConfig;
   commands: CommandSet;
   files: FileEntry[];
   /** Directories that are created even though they hold no generated file. */
   directories: string[];
+  /**
+   * Narrow changes to files that already exist. Only `repo-start add` uses
+   * this; creating a new project never edits anything.
+   */
+  edits: FileEdit[];
   /** Things the user should know, e.g. an option that could not be honoured. */
   notes: string[];
 }

@@ -2,6 +2,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { runAddCommand } from './cli/add.ts';
+import type { AddCommandOptions } from './cli/add.ts';
 import { HELP_TEXT, parseCliArgs } from './cli/args.ts';
 import type { CliOptions } from './cli/args.ts';
 import { renderDryRun, renderError, renderSummary } from './cli/output.ts';
@@ -70,6 +72,22 @@ export async function run(argv: string[], cwd: string = process.cwd()): Promise<
 
   const interactive =
     !options.yes && process.stdin.isTTY === true && process.stdout.isTTY === true;
+
+  if (options.command === 'add') {
+    const addOptions: AddCommandOptions = {
+      directory: options.directory ?? '.',
+      dryRun: options.dryRun,
+      yes: options.yes,
+      interactive,
+    };
+
+    if (options.type) {
+      addOptions.type = options.type;
+    }
+
+    return runAddCommand(addOptions, cwd, (text) => process.stdout.write(text));
+  }
+
   const author = options.author ?? gitUserName() ?? '';
   const year = new Date().getFullYear();
 

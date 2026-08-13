@@ -12,6 +12,8 @@ import { RepoStartError, isLicenseId, isProjectType } from '../config/validate.t
  * asking.
  */
 export interface CliOptions {
+  /** `create` scaffolds a new project, `add` hardens an existing one. */
+  command: 'create' | 'add';
   directory: string | null;
   name: string | undefined;
   description: string | undefined;
@@ -50,7 +52,8 @@ const BOOLEAN_PAIRS = {
 export const HELP_TEXT = `Repo Start — create the boring foundational files of a new repository.
 
 Usage
-  repo-start [directory] [options]
+  repo-start [directory] [options]        Create a new repository
+  repo-start add [directory] [options]    Audit an existing repository and fill the gaps
 
 Project
   --name <name>              Project name (defaults to the directory name)
@@ -80,11 +83,16 @@ Behavior
   -h, --help                 Show this help
   -v, --version              Show the version
 
+The add command uses only --dry-run, --yes and --type. It never overwrites an
+existing file, and never touches source code, licenses or git history.
+
 Examples
   repo-start
   repo-start my-project --type node-ts
   repo-start my-project --type python --yes
   repo-start my-project --dry-run
+  repo-start add
+  repo-start add ./some-project --dry-run
 
 Start clean. Build faster.
 `;
@@ -163,9 +171,20 @@ export function parseCliArgs(argv: string[]): CliOptions {
 
   const values = parsed.values as Record<string, unknown>;
 
-  if (parsed.positionals.length > 1) {
+  // `add` is the only subcommand. Everything else keeps the original shape:
+  // an optional directory and nothing more.
+  const isAdd = parsed.positionals[0] === 'add';
+  const positionals = isAdd ? parsed.positionals.slice(1) : parsed.positionals;
+
+  if (positionals.length > 1) {
     throw new RepoStartError('Expected at most one directory argument.', [
-      `Received: ${parsed.positionals.join(', ')}`,
+      `Received: ${positionals.join(', ')}`,
+    ]);
+  }
+
+  if (isAdd && values['force'] === true) {
+    throw new RepoStartError('--force is not used by `repo-start add`.', [
+      'The add command never overwrites an existing file.',
     ]);
   }
 
@@ -188,7 +207,8 @@ export function parseCliArgs(argv: string[]): CliOptions {
   const visibility = pickBoolean(values, 'private', 'public');
 
   return {
-    directory: parsed.positionals[0] ?? null,
+    command: isAdd ? 'add' : 'create',
+    directory: positionals[0] ?? null,
     name: optionalString(values['name']),
     description: optionalString(values['description']),
     type,
