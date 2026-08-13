@@ -22,23 +22,21 @@ export interface AddCommandOptions {
 }
 
 /** Ask about each proposal, carrying followers along with their leader. */
-async function selectProposals(proposals: AddProposal[]): Promise<AddProposal[]> {
-  const prompter = new Prompter();
+async function selectProposals(
+  proposals: AddProposal[],
+  prompter: Prompter,
+): Promise<AddProposal[]> {
   const accepted = new Set<string>();
 
-  try {
-    prompter.write('\n');
+  prompter.write('\n');
 
-    for (const proposal of proposals) {
-      if (proposal.follows) {
-        continue;
-      }
-      if (await prompter.confirm(proposal.question, true)) {
-        accepted.add(proposal.id);
-      }
+  for (const proposal of proposals) {
+    if (proposal.follows) {
+      continue;
     }
-  } finally {
-    prompter.close();
+    if (await prompter.confirm(proposal.question, true)) {
+      accepted.add(proposal.id);
+    }
   }
 
   return proposals.filter(
@@ -56,6 +54,7 @@ export async function runAddCommand(
   options: AddCommandOptions,
   cwd: string,
   write: (text: string) => void,
+  prompter?: Prompter,
 ): Promise<number> {
   const root = resolveTarget(cwd, options.directory);
   const state = inspectRepository(root);
@@ -82,8 +81,14 @@ export async function runAddCommand(
     // Both modes take every safe proposal: dry run so the report is complete,
     // --yes because every proposal is a safe addition or a precise fix.
     accepted = proposals;
-  } else if (options.interactive) {
-    accepted = await selectProposals(proposals);
+  } else if (options.interactive || prompter) {
+    const asker = prompter ?? new Prompter();
+
+    try {
+      accepted = await selectProposals(proposals, asker);
+    } finally {
+      asker.close();
+    }
   } else {
     throw new RepoStartError('Repo Start cannot ask which changes to apply here.', [
       'Re-run with --dry-run to see the plan, or --yes to apply every safe change.',

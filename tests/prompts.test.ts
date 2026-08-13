@@ -1,45 +1,13 @@
 import assert from 'node:assert/strict';
-import { PassThrough, Writable } from 'node:stream';
 import { describe, test } from 'node:test';
 
 import { parseCliArgs } from '../src/cli/args.ts';
-import { Prompter, promptForConfig } from '../src/cli/prompts.ts';
+import { promptForConfig } from '../src/cli/prompts.ts';
 import type { PromptResult } from '../src/cli/prompts.ts';
+import { scriptedPrompter } from './helpers.ts';
 
-/**
- * Drive the prompts with a scripted set of answers, one per question.
- *
- * Answers are fed in reaction to each prompt rather than all at once, because
- * readline drops input lines that arrive while no question is pending. A
- * prompt is recognised by not ending in a newline, which is exactly how the
- * Prompter writes questions. Once the script runs out, every further question
- * gets a bare Enter, so a mistake in the script fails an assertion instead of
- * hanging the test.
- */
-function scripted(answers: string[]): { prompter: Prompter; transcript: () => string } {
-  const input = new PassThrough();
-  const remaining = [...answers];
-  const chunks: string[] = [];
-
-  const output = new Writable({
-    write(chunk: Buffer | string, _encoding, callback) {
-      const text = chunk.toString();
-
-      chunks.push(text);
-
-      if (!text.endsWith('\n')) {
-        setImmediate(() => input.write(`${remaining.shift() ?? ''}\n`));
-      }
-
-      callback();
-    },
-  });
-
-  return {
-    prompter: new Prompter({ input, output }),
-    transcript: () => chunks.join(''),
-  };
-}
+/** Drive the prompts with a scripted set of answers, one per question. */
+const scripted = scriptedPrompter;
 
 async function runPrompts(answers: string[], argv: string[] = []): Promise<PromptResult> {
   const { prompter } = scripted(answers);

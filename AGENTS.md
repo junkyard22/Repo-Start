@@ -7,6 +7,9 @@ Deterministic, offline, no runtime dependencies.
 
 ## Structure
 
+- `src/audit/` — `repo-start add`: `inspect.ts` reads an existing repository,
+  `analyze.ts` turns that state into an audit, `plan.ts` turns approved
+  proposals into a ProjectPlan.
 - `src/cli/` — argument parsing, prompts and terminal output.
 - `src/config/` — `ProjectConfig`, defaults and validation.
 - `src/generators/` — `generateProject` (pure) and `writePlan` (the only filesystem writer).
@@ -50,6 +53,11 @@ npm run typecheck
   command inside a template; read it from the config the template is given.
 - Never generate a command that does not exist in the generated project. If a preset has
   nothing real to run, return `null` and add a note instead.
+- `inspectRepository` is the only place `repo-start add` reads the filesystem, and
+  `analyzeRepository` must stay pure. Ask git its own questions (`check-ignore`,
+  `ls-files`) rather than reimplementing gitignore semantics.
+- An audit rule reports rather than guesses. A false positive costs more than a
+  missed exotic case, and a fix ships only when the exact lines to change are known.
 - Never generate credential values. `.env.example` holds variable names and placeholders.
 - Internal imports use explicit `.ts` extensions; `tsc` rewrites them on build.
 - No runtime dependencies. Node's standard library is expected to be enough.

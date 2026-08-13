@@ -1,6 +1,6 @@
 {
   "name": "repo-start",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create the boring foundational files of a new repository, correctly.",
   "keywords": [
     "cli",

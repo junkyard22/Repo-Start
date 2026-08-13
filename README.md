@@ -86,6 +86,65 @@ repo-start my-project --dry-run             # show what would happen, change not
 
 Run `repo-start --help` for the full list of options.
 
+## Existing repositories
+
+`repo-start add` brings the same idea to a repository that already exists. It
+inspects the repository, reports what is missing or inconsistent, and changes
+only what you approve.
+
+```bash
+repo-start add                     # audit the current directory, then ask
+repo-start add ./some-project      # audit somewhere else
+repo-start add --dry-run           # audit only, guaranteed to write nothing
+repo-start add --yes               # apply every change it considers safe
+```
+
+```text
+Repo Start Audit
+
+Project: demo-app
+Detected: Node.js + TypeScript, npm, git repository, GitHub Actions
+
+7 files missing, 3 issues found
+
+Missing:
+  ✗ .gitattributes
+  ✗ AGENTS.md
+  ✗ CHANGELOG.md
+
+Issues:
+  ! .env.example exists but git ignores it, so nobody else will receive it
+    Ignored by .gitignore:3 (rule: .env*)
+    fixable: add `!.env.example` after `.env*`
+  ! README.md uses `npm run test` where package.json defines it as `npm test`
+    fixable: npm run test → npm test
+  ✓ CI build command exists
+  ✓ CI test command exists
+```
+
+What it checks:
+
+- hygiene files that are missing: `.gitattributes`, `.env.example`, `AGENTS.md`,
+  `CONTRIBUTING.md`, `CHANGELOG.md`, `docs/`, issue and pull request templates,
+  a CI workflow
+- whether git actually ignores your `.env.example`, asked of git itself
+- whether the npm commands in your README, `AGENTS.md` and `CONTRIBUTING.md`
+  match the scripts in `package.json`
+- whether the npm scripts your GitHub Actions workflow runs exist
+
+What it will not do:
+
+- overwrite a file you already have, for any reason
+- write a README or choose a license for an existing project
+- touch source code, dependencies, git history, or anything outside repository
+  hygiene
+- apply a fix it cannot describe precisely; ambiguous findings are reported and
+  left alone
+
+Generated documents are built from your repository's real commands, so
+`repo-start add` cannot introduce a command your project does not have. If your
+`package.json` has no `build` script, nothing it writes will mention one.
+
 ### Safety
 
 Repo Start never overwrites a file you did not ask it to write.
@@ -129,6 +188,7 @@ npm run typecheck
 repo-start/
 ├── assets/licenses/       Verbatim license texts, so generation works offline
 ├── src/
+│   ├── audit/             Inspecting and analysing an existing repository
 │   ├── cli/               Argument parsing, prompts, terminal output
 │   ├── config/            ProjectConfig, defaults and validation
 │   ├── generators/        Config to plan, plan to disk
@@ -145,6 +205,19 @@ CLI flags ─┐
            ├─→ ProjectConfig ─→ generateProject() ─→ ProjectPlan ─→ writePlan()
 prompts ───┘                     pure, in memory                    the only writer
 ```
+
+`repo-start add` reuses the same spine, with a read-only front end:
+
+```text
+existing repo ─→ inspectRepository() ─→ RepoState ─→ analyzeRepository() ─→ RepoAudit
+                   read-only               typed          pure                  │
+                                                                     selection ─┤
+                                                                                ↓
+                                                          buildAddPlan() ─→ ProjectPlan ─→ writePlan()
+```
+
+Both paths end at the same writer, so `--dry-run` is correct by construction in
+both modes rather than by a check at every filesystem call.
 
 Because `generateProject` never touches the filesystem, `--dry-run` is correct by
 construction and the tests run in memory.

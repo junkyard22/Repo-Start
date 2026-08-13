@@ -2,6 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { PassThrough, Writable } from 'node:stream';
+
+import { Prompter } from '../src/cli/prompts.ts';
 
 import { createDefaultConfig } from '../src/config/defaults.ts';
 import type { ProjectConfig, ProjectPlan, ProjectType } from '../src/config/types.ts';
@@ -122,6 +125,44 @@ export function bashCommands(markdown: string): string[] {
   }
 
   return commands;
+}
+
+/**
+ * Drive a Prompter with a scripted set of answers, one per question.
+ *
+ * Answers are fed in reaction to each prompt rather than all at once, because
+ * readline drops input lines that arrive while no question is pending. A
+ * prompt is recognised by not ending in a newline, which is exactly how the
+ * Prompter writes questions. Once the script runs out, every further question
+ * gets a bare Enter, so a mistake in the script fails an assertion instead of
+ * hanging the test.
+ */
+export function scriptedPrompter(answers: string[]): {
+  prompter: Prompter;
+  transcript: () => string;
+} {
+  const input = new PassThrough();
+  const remaining = [...answers];
+  const chunks: string[] = [];
+
+  const output = new Writable({
+    write(chunk: Buffer | string, _encoding, callback) {
+      const text = chunk.toString();
+
+      chunks.push(text);
+
+      if (!text.endsWith('\n')) {
+        setImmediate(() => input.write(`${remaining.shift() ?? ''}\n`));
+      }
+
+      callback();
+    },
+  });
+
+  return {
+    prompter: new Prompter({ input, output }),
+    transcript: () => chunks.join(''),
+  };
 }
 
 export const ALL_TYPES: ProjectType[] = ['generic', 'node-ts', 'python', 'react-ts'];

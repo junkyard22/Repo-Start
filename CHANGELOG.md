@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
+### Added
+
+- `repo-start add`: audit an existing repository and fill in the missing
+  repository hygiene. It inspects read-only, reports what is present, missing
+  or inconsistent, and changes only what you approve.
+- Audit checks: missing hygiene files, a `.env.example` that git ignores,
+  documented npm commands that do not match `package.json`, and GitHub Actions
+  steps that run scripts which do not exist.
+- Safe targeted fixes: un-ignore `.env.example` by adding one line to
+  `.gitignore`, and correct a documented command. Both are narrow line edits
+  that leave the rest of the file untouched.
+- `repo-start add --dry-run` is a complete audit on its own and writes nothing.
+- `repo-start add --yes` applies every change classified as safe.
+
+### Changed
+
+- `ProjectPlan` can now carry narrow edits to existing files, applied by the
+  same single writer that creates new files. Creating a project never uses them.
+
+## [0.1.0]
+
 ### Added
 
 - Initial project structure.
