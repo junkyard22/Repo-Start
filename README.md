@@ -5,9 +5,10 @@ A small CLI that creates the boring foundational files of a new repository, corr
 **Start clean. Build faster.**
 
 Every new repository needs the same unglamorous things: a `.gitignore` that does not
-accidentally swallow `.env.example`, a README whose install command matches the project,
-a CI workflow that runs commands that actually exist. Repo Start writes those files in
-one pass, and makes sure they agree with each other.
+accidentally swallow `.env.example`, a `.gitattributes` that keeps line endings from
+turning every diff into noise, a README whose install command matches the project, a CI
+workflow that runs commands that actually exist. Repo Start writes those files in one
+pass, and makes sure they agree with each other.
 
 It is deliberately not a project generator, not an AI agent, and not a framework. It works
 offline and has no runtime dependencies.
@@ -50,6 +51,7 @@ my-project/
 │   └── greet.test.ts
 ├── .editorconfig
 ├── .env.example
+├── .gitattributes
 ├── .gitignore
 ├── AGENTS.md
 ├── CHANGELOG.md

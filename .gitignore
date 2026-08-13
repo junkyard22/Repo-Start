@@ -1,9 +1,10 @@
 # Dependencies
 node_modules/
 
-# Build output
+# Build and packaging output
 dist/
 *.tsbuildinfo
+*.tgz
 
 # Test and coverage output
 coverage/

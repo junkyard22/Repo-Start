@@ -12,6 +12,7 @@ import {
   renderFeatureRequestTemplate,
   renderPullRequestTemplate,
 } from '../templates/github.ts';
+import { renderGitAttributes } from '../templates/gitattributes.ts';
 import { renderGitignore } from '../templates/gitignore.ts';
 import { renderLicense } from '../templates/license.ts';
 import { renderReadme } from '../templates/readme.ts';
@@ -51,6 +52,7 @@ export function generateProject(config: ProjectConfig, options: GenerateOptions)
 
   files.push(
     { path: '.gitignore', contents: renderGitignore(config, preset) },
+    { path: '.gitattributes', contents: renderGitAttributes() },
     { path: '.editorconfig', contents: renderEditorConfig(config) },
   );
 

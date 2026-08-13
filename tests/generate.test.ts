@@ -193,6 +193,63 @@ describe('.gitignore', () => {
   });
 });
 
+describe('.gitattributes', () => {
+  test('is generated for every preset', () => {
+    for (const type of ALL_TYPES) {
+      assert.ok(
+        pathsOf(planFor({ type })).includes('.gitattributes'),
+        `${type} should generate a .gitattributes`,
+      );
+    }
+  });
+
+  test('normalizes line endings to LF and nothing more', () => {
+    const contents = fileContents(planFor(), '.gitattributes');
+
+    assert.match(contents, /^\* text=auto eol=lf$/m);
+    assert.ok(contents.endsWith('\n'));
+
+    const rules = contents
+      .split('\n')
+      .filter((line) => line.trim().length > 0 && !line.startsWith('#'));
+
+    assert.deepEqual(rules, ['* text=auto eol=lf']);
+  });
+
+  test('is repository hygiene, so it is never optional', () => {
+    const minimal = planFor({
+      type: 'node-ts',
+      license: 'none',
+      includeEnvExample: false,
+      includeAgents: false,
+      includeContributing: false,
+      includeChangelog: false,
+      includeDocs: false,
+      includeCi: false,
+      includeIssueTemplate: false,
+      includePullRequestTemplate: false,
+    });
+
+    assert.ok(pathsOf(minimal).includes('.gitattributes'));
+  });
+
+  test('appears in the README project structure', () => {
+    for (const type of ALL_TYPES) {
+      const readme = fileContents(planFor({ type }), 'README.md');
+      const structure = readme.slice(readme.indexOf('## Project Structure'));
+
+      assert.match(structure, /\.gitattributes/, `${type} structure should list .gitattributes`);
+    }
+  });
+
+  test('agrees with the .editorconfig end_of_line rule', () => {
+    const plan = planFor();
+
+    assert.match(fileContents(plan, '.editorconfig'), /end_of_line = lf/);
+    assert.match(fileContents(plan, '.gitattributes'), /eol=lf/);
+  });
+});
+
 describe('.env.example', () => {
   test('contains placeholders and no credential values', () => {
     for (const type of ALL_TYPES) {

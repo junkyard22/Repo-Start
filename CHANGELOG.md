@@ -19,3 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Collision detection with `--force` and `--dry-run`.
 - Non-interactive mode via command line flags and `--yes`.
 - Optional `git init`.
+- A `.gitattributes` with LF normalization in every generated project, and in
+  Repo Start itself.
+
+### Changed
+
+- Build on `prepack` instead of `prepublishOnly`, so `npm pack` always produces
+  a tarball containing the compiled CLI.

@@ -139,6 +139,17 @@ describe('the command line interface', () => {
     });
   });
 
+  test('a dry run lists the repository hygiene files it would create', async () => {
+    await withTempDir(async (dir) => {
+      const result = await runCli(dir, ['my-project', '--type', 'node-ts', '--yes', '--dry-run']);
+
+      assert.equal(result.code, 0);
+      assert.match(result.stdout, /^ {2}\.gitattributes$/m);
+      assert.match(result.stdout, /^ {2}\.gitignore$/m);
+      assert.match(result.stdout, /^ {2}\.editorconfig$/m);
+    });
+  });
+
   test('refuses to clobber an existing project and exits non-zero', async () => {
     await withTempDir(async (dir) => {
       const target = path.join(dir, 'my-project');
