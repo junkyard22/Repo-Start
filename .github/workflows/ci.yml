@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      # Switch to `npm ci` once package-lock.json is committed.
+      - run: npm install
+
+      - run: npm run build
+
+      - run: npm run typecheck
+
+      - run: npm test
