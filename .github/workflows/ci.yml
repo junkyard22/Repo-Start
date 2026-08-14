@@ -9,7 +9,36 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  # The support matrix the README and `engines.node` actually promise: the
+  # declared floor and current Node.js, on both a POSIX and a Windows runner.
+  # Path handling and the symlink/junction refusals differ per platform, so
+  # Windows is not a formality here.
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['22.18', '24']
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+  coverage:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,8 +50,90 @@ jobs:
 
       - run: npm ci
 
+      # Fails the build below the thresholds declared in package.json.
+      - run: npm run coverage
+
+  # The unit tests prove the generated files say the right thing. These prove a
+  # generated project is actually usable: real dependency install, real build,
+  # real test run, on both platforms.
+  smoke-react:
+    name: smoke react-ts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.18'
+
+      - run: npm ci
+
       - run: npm run build
 
-      - run: npm run typecheck
+      # Generated outside the checkout so nothing leaks into this repository.
+      - name: Generate a React project
+        shell: bash
+        run: node dist/index.js ../smoke-react-ts --type react-ts --yes --no-git
 
-      - run: npm test
+      - name: Install its dependencies
+        shell: bash
+        working-directory: ../smoke-react-ts
+        run: npm install
+
+      - name: Build it
+        shell: bash
+        working-directory: ../smoke-react-ts
+        run: npm run build
+
+      - name: Run its tests
+        shell: bash
+        working-directory: ../smoke-react-ts
+        run: npm test
+
+  smoke-python:
+    name: smoke python (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.18'
+
+      # 3.10 is the floor the generated pyproject.toml declares, so that is the
+      # version worth proving an install against.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.10'
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Generate a Python project
+        shell: bash
+        run: node dist/index.js ../smoke-python --type python --yes --no-git
+
+      - name: Install it, with its dev extras
+        shell: bash
+        working-directory: ../smoke-python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run its tests
+        shell: bash
+        working-directory: ../smoke-python
+        run: pytest

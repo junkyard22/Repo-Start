@@ -184,6 +184,16 @@ Type check the sources and the tests:
 npm run typecheck
 ```
 
+Test with coverage, which fails below 95% lines, 88% branches and 95% functions:
+
+```bash
+npm run coverage
+```
+
+CI runs all of the above on Node.js 22.18 and 24, on Ubuntu and Windows, and
+additionally generates a React and a Python project and builds and tests each
+one for real.
+
 ## Project Structure
 
 ```text
@@ -233,6 +243,15 @@ enforces that: a document may not print a command the preset does not have.
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 Notable changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md). Please do not open a
+public issue for one.
+
+Releases are published from a tag using npm trusted publishing, so no long-lived
+npm token exists for this package, and every published version carries
+provenance. Verify it with `npm audit signatures`.
 
 ## License
 

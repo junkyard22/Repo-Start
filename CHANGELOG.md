@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-14
+
+### Added
+
+- `repository`, `homepage`, `bugs` and `author` metadata, so npm links back to
+  the source and the issue tracker.
+- A tag-triggered release workflow that builds, type checks, tests and publishes
+  to npm using trusted publishing with OIDC, with no long-lived token.
+- `npm run coverage`, which fails below 95% line, 88% branch and 95% function
+  coverage.
+- `SECURITY.md`, describing how to report a vulnerability privately.
+
+### Changed
+
+- CI now tests the declared minimum Node.js version, 22.18, alongside 24, and
+  runs on Windows as well as Ubuntu.
+- CI installs and builds a generated React project and a generated Python
+  project, so the presets are covered end to end rather than by unit tests alone.
+
 ### Fixed
 
 - Refuse symbolic links and Windows junctions anywhere inside a write target,
@@ -26,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pin GitHub Actions to immutable commits, grant the workflow read-only
   repository contents, use `npm ci` when a lockfile exists, and add Dependabot
   update configuration.
+- Add CodeQL code scanning on pushes, pull requests and a weekly schedule.
 
 ## [0.2.0]
 

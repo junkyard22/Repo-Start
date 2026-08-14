@@ -1,6 +1,6 @@
 {
   "name": "repo-start",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Create the boring foundational files of a new repository, correctly.",
   "keywords": [
     "cli",
@@ -10,6 +10,15 @@
     "generator"
   ],
   "license": "Apache-2.0",
+  "author": "James Yarber <jamesryarber@gmail.com>",
+  "homepage": "https://github.com/junkyard22/Repo-Start#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/junkyard22/Repo-Start.git"
+  },
+  "bugs": {
+    "url": "https://github.com/junkyard22/Repo-Start/issues"
+  },
   "type": "module",
   "bin": {
     "repo-start": "dist/index.js"
@@ -29,6 +38,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "node --test \"tests/*.test.ts\"",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-lines=95 --test-coverage-branches=88 --test-coverage-functions=95 \"tests/*.test.ts\"",
     "start": "node dist/index.js",
     "prepack": "npm run build"
   },

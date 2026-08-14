@@ -1,0 +1,70 @@
+name: Release
+
+# Publishing is driven entirely by the tag. Pushing `vX.Y.Z` builds the package,
+# re-runs the full check suite, and publishes it to npm.
+#
+# There is no npm token anywhere in this repository. The job authenticates with
+# npm through OIDC ("trusted publishing"), which mints a short lived credential
+# scoped to this workflow in this repository. The trusted publisher has to be
+# configured once on the npm side, under the package's Settings, pointing at
+# `junkyard22/Repo-Start` and the workflow file `release.yml`.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Required for OIDC: without it npm cannot verify who is publishing and
+      # provenance cannot be attested.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          # Trusted publishing needs npm pointed at the public registry even
+          # though no token is written to .npmrc.
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing requires npm 11.5.1 or newer. Node 24 ships a new
+      # enough npm today; upgrading explicitly keeps the job correct if that
+      # ever stops being true.
+      - name: Use an npm that supports trusted publishing
+        run: npm install --global npm@latest
+
+      # A tag that disagrees with the manifest would publish a version nobody
+      # asked for, so fail before anything is built.
+      - name: Verify the tag matches the version in package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(jq -r .version package.json)"
+          if [ "$tag" != "$version" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}." >&2
+            exit 1
+          fi
+          echo "Publishing version ${version}."
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      # `prepack` rebuilds during publish, so the tarball can never be stale.
+      # `--provenance` attaches a signed statement linking this artifact to this
+      # commit and workflow; it requires the repository to be public.
+      - name: Publish to npm
+        run: npm publish --provenance --access public
