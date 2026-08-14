@@ -63,8 +63,24 @@ jobs:
 
       - run: npm test
 
+      # A version can only be published once. Re-running a release, or tagging a
+      # version that was published by hand, should be a no-op rather than a red
+      # build: the checks above still ran, and there is nothing left to do.
+      - name: Check whether this version is already on the registry
+        id: registry
+        run: |
+          name="$(jq -r .name package.json)"
+          version="$(jq -r .version package.json)"
+          if [ -n "$(npm view "${name}@${version}" version 2>/dev/null)" ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "${name}@${version} is already published. Skipping the publish step."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # `prepack` rebuilds during publish, so the tarball can never be stale.
       # `--provenance` attaches a signed statement linking this artifact to this
       # commit and workflow; it requires the repository to be public.
       - name: Publish to npm
+        if: steps.registry.outputs.published == 'false'
         run: npm publish --provenance --access public
