@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Build the React starter's greeting as a complete string literal, so a project
+  name containing a backslash can no longer be silently altered (`Back\slash`
+  became `Backslash`) or break `src/App.tsx` outright (a trailing backslash
+  escaped the closing quote). Name validation rejects backslashes before the
+  template sees one, so this was not reachable through the CLI; the template no
+  longer depends on a rule enforced elsewhere.
+
+### Changed
+
+- Trim separator characters by walking indices instead of with an anchored
+  regular expression. The old form is the shape static analysis reports as
+  polynomial; V8 optimises it and it was never measurably slow, so this buys
+  clarity rather than speed.
+
 ## [0.2.1] - 2026-08-14
 
 ### Added

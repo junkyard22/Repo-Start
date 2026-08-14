@@ -115,12 +115,18 @@ createRoot(container).render(
 `;
 
 function appTsx(config: ProjectConfig): string {
+  // JSON.stringify emits a complete, fully escaped JavaScript string literal,
+  // quotes included. Escaping the quote character by hand missed backslashes:
+  // "Back\slash" would have rendered as Backslash, and a trailing one escaped
+  // the closing quote and broke the file. Validation rejects backslashes in a
+  // project name today, so this is not a hole so much as one less thing
+  // depending on a rule enforced in another module.
   return `import { greeting } from './lib/greeting';
 
 export function App() {
   return (
     <main className="app">
-      <h1>{greeting('${config.name.replace(/'/g, "\\'")}')}</h1>
+      <h1>{greeting(${JSON.stringify(config.name)})}</h1>
       <p>
         Edit <code>src/App.tsx</code> and save to see the change.
       </p>

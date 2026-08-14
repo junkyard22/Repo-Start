@@ -3,6 +3,7 @@ import { describe, test } from 'node:test';
 
 import { RepoStartError } from '../src/config/validate.ts';
 import { generateProject } from '../src/generators/generate-project.ts';
+import { reactTypeScriptPreset } from '../src/presets/react-typescript.ts';
 import { ALL_TYPES, fileContents, pathsOf, planFor, testConfig } from './helpers.ts';
 
 describe('generic project generation', () => {
@@ -127,6 +128,25 @@ describe('react-ts project generation', () => {
     assert.ok(paths.includes('src/main.tsx'));
     assert.ok(paths.includes('src/App.tsx'));
     assert.ok(paths.includes('tests/greeting.test.ts'));
+  });
+
+  test('embeds the project name as a complete string literal, whatever it contains', () => {
+    // The name reaches App.tsx as source code, so it has to survive as data.
+    // Validation rejects backslashes and quotes before a name gets this far,
+    // which is why these go straight to the preset: the template should hold on
+    // its own rather than leaning on a rule enforced in another module.
+    const base = testConfig({ type: 'react-ts' });
+
+    for (const name of ["O'Brien", 'Back\\slash', 'Say "hi"', 'Trailing\\']) {
+      const files = reactTypeScriptPreset.files({ ...base, name });
+      const source = files.find((file) => file.path === 'src/App.tsx')?.contents ?? '';
+      const literal = /\{greeting\((.*)\)\}/.exec(source)?.[1];
+
+      assert.ok(literal, `expected a greeting() call for ${JSON.stringify(name)}`);
+      // Parsing the literal back is what proves it is well formed: a partial
+      // escape would either throw here or yield a different string.
+      assert.equal(JSON.parse(literal), name);
+    }
   });
 
   test('never publishes an application by accident', () => {
